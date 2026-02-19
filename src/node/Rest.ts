@@ -1,7 +1,7 @@
 import { Versions } from '../Constants';
 import type { FilterOptions } from '../guild/Player';
 import type { NodeOption } from '../Shoukaku';
-import { validatePluginRequirement } from '../Utils';
+import { t, validatePluginRequirement } from '../Utils';
 import type { HintedString, PluginRequirement } from '../Utils';
 import type { Node, NodeInfo, NodeInfoPlugin, Stats } from './Node';
 
@@ -330,15 +330,13 @@ export class RestClient<T extends RestMiddleware = NoopMiddleware> {
 	}
 }
 
-export const r = <T>(response: unknown) => response as T;
-
 export class ResolveEndpoint implements RestEndpoint {
 	constructor (public readonly identifier: string) {}
 
 	public readonly endpoint = '/loadtracks';
 	public readonly params = () => ({ identifier: this.identifier });
 
-	public R = r<LavalinkResponse>;
+	public R = t<LavalinkResponse>;
 }
 
 export class DecodeEndpoint implements RestEndpoint {
@@ -347,7 +345,7 @@ export class DecodeEndpoint implements RestEndpoint {
 	public readonly endpoint = '/decodetrack';
 	public readonly params = () => ({ track: this.track });
 
-	public R = r<Track>;
+	public R = t<Track>;
 }
 
 export class GetPlayersEndpoint implements RestEndpoint {
@@ -355,7 +353,7 @@ export class GetPlayersEndpoint implements RestEndpoint {
 
 	public readonly endpoint = () => `/sessions/${this.sessionId}/players`;
 
-	public R = r<LavalinkPlayer[]>;
+	public R = t<LavalinkPlayer[]>;
 }
 
 export class GetPlayerEndpoint implements RestEndpoint {
@@ -363,7 +361,7 @@ export class GetPlayerEndpoint implements RestEndpoint {
 
 	public readonly endpoint = () => `/sessions/${this.sessionId}/players/${this.guildId}`;
 
-	public R = r<LavalinkPlayer>;
+	public R = t<LavalinkPlayer>;
 }
 
 export class UpdatePlayerEndpoint implements RestEndpoint {
@@ -376,7 +374,7 @@ export class UpdatePlayerEndpoint implements RestEndpoint {
 	public readonly headers = { 'Content-Type': 'application/json' };
 	public readonly body = () => this.data.playerOptions as Record<string, unknown>;
 
-	public R = r<LavalinkPlayer>;
+	public R = t<LavalinkPlayer>;
 }
 
 export class DestroyPlayerEndpoint implements RestEndpoint {
@@ -386,7 +384,7 @@ export class DestroyPlayerEndpoint implements RestEndpoint {
 
 	public readonly method = 'DELETE';
 
-	public R = r<void>;
+	public R = t<void>;
 }
 
 export class UpdateSessionEndpoint implements RestEndpoint {
@@ -402,19 +400,19 @@ export class UpdateSessionEndpoint implements RestEndpoint {
 	public readonly headers = { 'Content-Type': 'application/json' };
 	public readonly body = () => ({ resuming: this.resuming, timeout: this.timeout });
 
-	public R = r<SessionInfo>;
+	public R = t<SessionInfo>;
 }
 
 export class StatsEndpoint implements RestEndpoint {
 	public readonly endpoint = '/stats';
 
-	public R = r<Stats>;
+	public R = t<Stats>;
 }
 
 export class RoutePlannerStatusEndpoint implements RestEndpoint {
 	public readonly endpoint = '/routeplanner/status';
 
-	public R = r<RoutePlanner>;
+	public R = t<RoutePlanner>;
 }
 
 export class UnmarkFailedAddressEndpoint implements RestEndpoint {
@@ -426,7 +424,7 @@ export class UnmarkFailedAddressEndpoint implements RestEndpoint {
 	public readonly headers = { 'Content-Type': 'application/json' };
 	public readonly body = () => ({ address: this.address });
 
-	public R = r<void>;
+	public R = t<void>;
 }
 
 export class LavalinkInfoEndpoint implements RestEndpoint {
@@ -434,7 +432,7 @@ export class LavalinkInfoEndpoint implements RestEndpoint {
 
 	public readonly headers = { 'Content-Type': 'application/json' };
 
-	public R = r<NodeInfo>;
+	public R = t<NodeInfo>;
 }
 
 /**
@@ -591,7 +589,7 @@ export class Rest {
 			readonly params = fetchOptions.options.params;
 			readonly body = fetchOptions.options.body;
 
-			R = r<T>;
+			R = t<T>;
 		});
 	}
 }
