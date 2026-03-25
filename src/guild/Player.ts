@@ -106,6 +106,7 @@ export interface PlayerUpdate {
 		position: number;
 		time: number;
 		ping: number;
+		crossfade?: number;
 	};
 	guildId: string;
 }
@@ -200,6 +201,18 @@ export class Player extends TypedEventEmitter<PlayerEvents> {
 	 * Filters on current track
 	 */
 	public filters: FilterOptions;
+	/**
+	 * Crossfade duration in milliseconds.
+	 */
+	public crossfade: number;
+	/**
+	 * Encoded track that has already been scheduled for crossfade.
+	 */
+	public scheduledTrack: string | null;
+	/**
+	 * Whether a crossfade scheduling request is in flight.
+	 */
+	public crossfadeScheduling: boolean;
 
 	constructor(guildId: string, node: Node) {
 		super();
@@ -211,6 +224,9 @@ export class Player extends TypedEventEmitter<PlayerEvents> {
 		this.position = 0;
 		this.ping = 0;
 		this.filters = {};
+		this.crossfade = 0;
+		this.scheduledTrack = null;
+		this.crossfadeScheduling = false;
 	}
 
 	public get data(): UpdatePlayerInfo {
@@ -223,6 +239,7 @@ export class Player extends TypedEventEmitter<PlayerEvents> {
 				},
 				position: this.position,
 				paused: this.paused,
+				crossfade: this.crossfade,
 				filters: this.filters,
 				voice: {
 					token: connection.serverUpdate!.token,
@@ -309,6 +326,48 @@ export class Player extends TypedEventEmitter<PlayerEvents> {
 	 */
 	public setGlobalVolume(volume: number): Promise<void> {
 		return this.update({ volume });
+	}
+
+	/**
+	 * Sets the crossfade duration in milliseconds.
+	 * @param crossfade Target crossfade duration in milliseconds
+	 */
+	public setCrossfade(crossfade: number): Promise<void> {
+		if (Number.isNaN(crossfade))
+			throw new TypeError('Crossfade must be a number');
+		if (crossfade < 0)
+			throw new RangeError('Crossfade must be greater than or equal to 0');
+		return this.update({ crossfade });
+	}
+
+	/**
+	 * Schedules a track for the next crossfade transition.
+	 * @param encodedTrack Base64 encoded track to schedule
+	 */
+	public async scheduleTrack(encodedTrack: string): Promise<void> {
+		this.crossfadeScheduling = true;
+		try {
+			await this.node.rest.updatePlayer({
+				guildId: this.guildId,
+				schedule: true,
+				playerOptions: {
+					track: {
+						encoded: encodedTrack
+					}
+				}
+			});
+			this.scheduledTrack = encodedTrack;
+		} finally {
+			this.crossfadeScheduling = false;
+		}
+	}
+
+	/**
+	 * Clears cached crossfade scheduling state.
+	 */
+	public clearScheduledTrack(): void {
+		this.scheduledTrack = null;
+		this.crossfadeScheduling = false;
 	}
 
 	/**
@@ -468,6 +527,8 @@ export class Player extends TypedEventEmitter<PlayerEvents> {
 			this.volume = playerOptions.volume;
 		if (typeof playerOptions.position === 'number')
 			this.position = playerOptions.position;
+		if (typeof playerOptions.crossfade === 'number')
+			this.crossfade = playerOptions.crossfade;
 	}
 
 	/**
@@ -480,6 +541,9 @@ export class Player extends TypedEventEmitter<PlayerEvents> {
 		this.volume = 100;
 		this.position = 0;
 		this.filters = {};
+		this.crossfade = 0;
+		this.scheduledTrack = null;
+		this.crossfadeScheduling = false;
 	}
 
 	/**
@@ -505,9 +569,11 @@ export class Player extends TypedEventEmitter<PlayerEvents> {
 	 * Handle player update data
 	 */
 	public onPlayerUpdate(json: PlayerUpdate): void {
-		const { position, ping } = json.state;
+		const { position, ping, crossfade } = json.state;
 		this.position = position;
 		this.ping = ping;
+		if (typeof crossfade === 'number')
+			this.crossfade = crossfade;
 		this.emit('update', json);
 	}
 
@@ -520,6 +586,8 @@ export class Player extends TypedEventEmitter<PlayerEvents> {
 		switch (json.type) {
 			case PlayerEventType.TRACK_START_EVENT:
 				if (this.track) this.track = json.track.encoded;
+				if (this.scheduledTrack && json.track.encoded === this.scheduledTrack)
+					this.scheduledTrack = null;
 				this.emit('start', json);
 				break;
 			case PlayerEventType.TRACK_END_EVENT:
