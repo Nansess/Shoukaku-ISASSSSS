@@ -112,6 +112,7 @@ export interface LavalinkPlayer {
 	track?: Track;
 	volume: number;
 	paused: boolean;
+	crossfade?: number;
 	voice: LavalinkPlayerVoice;
 	filters: FilterOptions;
 }
@@ -128,6 +129,7 @@ export interface UpdatePlayerOptions {
 	endTime?: number;
 	volume?: number;
 	paused?: boolean;
+	crossfade?: number;
 	filters?: FilterOptions;
 	voice?: LavalinkPlayerVoiceOptions;
 }
@@ -136,6 +138,7 @@ export interface UpdatePlayerInfo {
 	guildId: string;
 	playerOptions: UpdatePlayerOptions;
 	noReplace?: boolean;
+	schedule?: boolean;
 }
 
 export interface SessionInfo {
@@ -256,7 +259,10 @@ export class Rest {
 			endpoint: `/sessions/${this.sessionId}/players/${data.guildId}`,
 			options: {
 				method: 'PATCH',
-				params: { noReplace: data.noReplace?.toString() ?? 'false' },
+				params: {
+					noReplace: data.noReplace?.toString() ?? 'false',
+					...(typeof data.schedule === 'boolean' ? { schedule: data.schedule.toString() } : {})
+				},
 				headers: { 'Content-Type': 'application/json' },
 				body: data.playerOptions as Record<string, unknown>
 			}
